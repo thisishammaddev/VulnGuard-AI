@@ -11,6 +11,11 @@ import { AIResponseSchema, mergeVulnerabilities, normalizeFallbackVulns, resolve
 const router: IRouter = Router();
 
 router.post("/scan", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
   const startTime = Date.now();
 
   const parseResult = ScanContractBody.safeParse(req.body);
@@ -60,7 +65,7 @@ router.post("/scan", async (req, res) => {
         analysis_time_ms,
         timestamp: new Date().toISOString(),
       };
-      const scanId = storeScan(scanData);
+      const scanId = await storeScan(scanData, req.user.id, code);
       res.json({ ...scanData, scanId });
       return;
     }
@@ -83,7 +88,7 @@ router.post("/scan", async (req, res) => {
         timestamp: new Date().toISOString(),
       };
 
-      const scanId = storeScan(scanData);
+      const scanId = await storeScan(scanData, req.user.id, code);
       res.json({ ...scanData, scanId });
       return;
     }
@@ -129,7 +134,7 @@ router.post("/scan", async (req, res) => {
         timestamp,
       };
 
-      const scanId = storeScan(scanData);
+      const scanId = await storeScan(scanData, req.user.id, code);
       res.json({ ...scanData, scanId });
       return;
     }
@@ -167,7 +172,7 @@ router.post("/scan", async (req, res) => {
       timestamp,
     };
 
-    const scanId = storeScan(scanData);
+    const scanId = await storeScan(scanData, req.user.id, code);
     res.json({ ...scanData, scanId });
   } catch (err: unknown) {
     req.log.error({ err }, "Error calling OpenRouter API, using fallback analyzer");
@@ -185,7 +190,7 @@ router.post("/scan", async (req, res) => {
       timestamp: new Date().toISOString(),
     };
 
-    const scanId = storeScan(scanData);
+    const scanId = await storeScan(scanData, req.user.id, code);
     res.json({ ...scanData, scanId });
   }
 });

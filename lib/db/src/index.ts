@@ -41,7 +41,7 @@ export const pool = new Pool({
   connectionString,
   ssl: shouldUseSsl(rawConnectionString)
     ? {
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
       }
     : false,
 });

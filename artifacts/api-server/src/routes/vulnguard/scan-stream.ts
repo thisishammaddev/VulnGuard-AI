@@ -152,37 +152,12 @@ function tryParseAiJson(text: string): unknown {
   throw new Error("Could not find JSON structure in AI response");
 }
 
-async function persistScanIfAuthed(req: import("express").Request, payload: {
-  scanId: string;
-  contractName: string;
-  code: string;
-  codeHash: string;
-  riskScore: number;
-  vulnerabilities: Array<Record<string, unknown>>;
-  summary: string;
-  analysisTimeMs: number;
-}) {
-  if (!req.isAuthenticated()) return;
-  try {
-    await db.insert(scansTable).values({
-      id: payload.scanId,
-      userId: req.user.id,
-      contractName: payload.contractName,
-      contractCode: payload.code,
-      contractHash: payload.codeHash,
-      riskScore: payload.riskScore,
-      status: "completed",
-      vulnerabilities: payload.vulnerabilities,
-      summary: payload.summary,
-      executionTime: payload.analysisTimeMs,
-      modelUsed: OPENROUTER_MODEL,
-    });
-  } catch (dbErr) {
-    req.log.warn({ err: dbErr }, "Failed to persist scan to database");
-  }
-}
-
 router.post("/scan-stream", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
   const startTime = Date.now();
 
   const parseResult = ScanContractBody.safeParse(req.body);
@@ -280,17 +255,7 @@ router.post("/scan-stream", async (req, res) => {
         timestamp: new Date().toISOString(),
       };
 
-      const scanId = storeScan(scanData);
-      await persistScanIfAuthed(req, {
-        scanId,
-        contractName: scanData.contract_name,
-        code,
-        codeHash: scanData.code_hash,
-        riskScore: scanData.risk_score,
-        vulnerabilities,
-        summary: scanData.summary,
-        analysisTimeMs: analysis_time_ms,
-      });
+      const scanId = await storeScan(scanData, req.user.id, code);
 
       sseWrite(res, "meta", {
         contract_name: scanData.contract_name,
@@ -384,17 +349,7 @@ router.post("/scan-stream", async (req, res) => {
       timestamp: new Date().toISOString(),
     };
 
-    const scanId = storeScan(scanData);
-    await persistScanIfAuthed(req, {
-      scanId,
-      contractName: scanData.contract_name,
-      code,
-      codeHash: scanData.code_hash,
-      riskScore: scanData.risk_score,
-      vulnerabilities,
-      summary: scanData.summary,
-      analysisTimeMs: analysis_time_ms,
-    });
+    const scanId = await storeScan(scanData, req.user.id, code);
 
     if (streamClosed) return;
 
@@ -441,17 +396,7 @@ router.post("/scan-stream", async (req, res) => {
       timestamp: new Date().toISOString(),
     };
 
-    const scanId = storeScan(scanData);
-    await persistScanIfAuthed(req, {
-      scanId,
-      contractName: scanData.contract_name,
-      code,
-      codeHash: scanData.code_hash,
-      riskScore: scanData.risk_score,
-      vulnerabilities,
-      summary: scanData.summary,
-      analysisTimeMs: analysis_time_ms,
-    });
+    const scanId = await storeScan(scanData, req.user.id, code);
 
     sseWrite(res, "meta", {
       contract_name: scanData.contract_name,

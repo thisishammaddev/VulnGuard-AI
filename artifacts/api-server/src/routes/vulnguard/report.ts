@@ -4,7 +4,7 @@ import { GetReportParams } from "@workspace/api-zod";
 import { reportLimiter } from "../../middlewares/rateLimitMiddleware.js";
 import { getScan } from "./store.js";
 import { db, scansTable } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   drawMetadataPage,
   drawFinancialAnalysis,
@@ -387,7 +387,10 @@ function codeBlock(
 
 // ── Main route ────────────────────────────────────────────────────────────────
 router.get("/report/:scanId", reportLimiter, async (req, res) => {
-  const parseResult = GetReportParams.safeParse(req.params);
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }  const parseResult = GetReportParams.safeParse(req.params);
   if (!parseResult.success) {
     res.status(400).json({ error: "Invalid scan ID" });
     return;
@@ -395,11 +398,12 @@ router.get("/report/:scanId", reportLimiter, async (req, res) => {
 
   const { scanId } = parseResult.data;
   let scan = getScan(scanId);
+  if (scan && scan.userId !== req.user.id) scan = undefined;
 
   // Fallback to database if not in memory
   if (!scan) {
     try {
-      const dbScan = await db.select().from(scansTable).where(eq(scansTable.id, scanId)).limit(1);
+      const dbScan = await db.select().from(scansTable).where(and(eq(scansTable.id, scanId), eq(scansTable.userId, req.user.id))).limit(1);
       if (dbScan.length > 0) {
         const row = dbScan[0];
         const vulns = Array.isArray(row.vulnerabilities) ? row.vulnerabilities : [];

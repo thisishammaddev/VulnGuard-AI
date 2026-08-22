@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto";
+import { db, scansTable } from "@workspace/db";
 
 export interface StoredScan {
   scanId: string;
+  userId: string;
   success: boolean;
   contract_name: string;
   code_hash: string;
@@ -13,11 +15,24 @@ export interface StoredScan {
   timestamp: string;
 }
 
+type ScanResult = Omit<StoredScan, "scanId" | "userId">;
+
 const scanStore = new Map<string, StoredScan>();
 
-export function storeScan(data: Omit<StoredScan, "scanId">): string {
+export async function storeScan(data: ScanResult, userId: string, contractCode: string): Promise<string> {
   const scanId = randomUUID();
-  scanStore.set(scanId, { ...data, scanId });
+  await db.insert(scansTable).values({
+    id: scanId,
+    userId,
+    contractName: data.contract_name,
+    contractCode,
+    contractHash: data.code_hash,
+    riskScore: data.risk_score,
+    vulnerabilities: data.vulnerabilities,
+    summary: data.summary,
+    executionTime: data.analysis_time_ms,
+  });
+  scanStore.set(scanId, { ...data, scanId, userId });
   return scanId;
 }
 
