@@ -3,6 +3,7 @@ node_modules/
 
 # Build and compiler output
 dist/
+.claude/
 tmp/
 out-tsc/
 *.tsbuildinfo
