@@ -34,6 +34,8 @@ function normalizeConnectionString(connectionString: string): string {
   }
 }
 
+const rejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false";
+
 const rawConnectionString = getDatabaseUrl();
 const connectionString = normalizeConnectionString(rawConnectionString);
 
@@ -41,7 +43,7 @@ export const pool = new Pool({
   connectionString,
   ssl: shouldUseSsl(rawConnectionString)
     ? {
-        rejectUnauthorized: true,
+        rejectUnauthorized,
       }
     : false,
 });
