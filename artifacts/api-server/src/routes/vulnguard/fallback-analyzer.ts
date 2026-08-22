@@ -182,29 +182,8 @@ export function analyzeContractFallback(code: string, contractName?: string): Fa
       });
     }
 
-    // Only flag unchecked external call if it's a low-level call
-    if (extIdx !== null && fn.lines[extIdx]?.includes(".call")) {
-      const hasSuccessCheck = fn.lines.some((l) => /require\s*\(\s*success\s*\)|if\s*\(\s*success\s*\)/.test(l));
-      if (!hasSuccessCheck) {
-        const line = fn.startLine + extIdx;
-        push({
-          type: "unchecked-external-call",
-          severity: "HIGH",
-          swc_id: "SWC-104",
-          line_number: line,
-          affected_lines: `line ${line}`,
-          affected_functions: fn.name,
-          title: `Unchecked external call in ${fn.name}()`,
-          description: "Low-level .call() return value not validated.",
-          technical_risk: "Failed call is silently ignored.",
-          attack_scenario: "Attacker creates failing call and proceeds with logic.",
-          impact: "Logic bypass and accounting errors.",
-          vulnerable_code: sourceLines[line - 1]?.trim() ?? null,
-          fixed_code: null,
-          recommendation: "Always check (bool success) and revert if false.",
-        });
-      }
-    }
+    // Verifying low-level call results requires parsing full control flow.
+    // The regex fallback deliberately does not emit SWC-104 findings.
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -622,35 +601,8 @@ export function analyzeContractFallback(code: string, contractName?: string): Fa
   });
 
   // ════════════════════════════════════════════════════════════════════════════
-  // 22. SWC-114 – TRANSACTION ORDER DEPENDENCE (FRONT-RUNNING)
-  // ════════════════════════════════════════════════════════════════════════════
-  sourceLines.forEach((line, i) => {
-    if (/price|rate|amount|balance/.test(line) && /=\s*\w+\.|\.read\s*\(|\.call\s*\(/.test(sourceLines.slice(i, Math.min(i + 5, sourceLines.length)).join("\n"))) {
-      // Reading external price without timestamp/block check
-      const context = sourceLines.slice(i, Math.min(i + 10, sourceLines.length)).join("\n");
-      if (!/deadline|timestamp|block\.number|frontrun|MEV|slippage/.test(context)) {
-        const lineNo = i + 1;
-        push({
-          type: "front-running",
-          severity: "MEDIUM",
-          swc_id: "SWC-114",
-          line_number: lineNo,
-          affected_lines: `line ${lineNo}`,
-          affected_functions: null,
-          title: "Potential Front-Running Vulnerability",
-          description: "Transaction depends on external state without protection.",
-          technical_risk: "Attacker can front-run and change conditions.",
-          attack_scenario: "Attacker executes transaction before target, changing prices/balances.",
-          impact: "Economic loss, unfavorable execution.",
-          vulnerable_code: line.trim(),
-          fixed_code: null,
-          recommendation: "Implement slippage protection, commit-reveal scheme, or MEV protection.",
-        });
-      }
-    }
-  });
-
-  // ════════════════════════════════════════════════════════════════════════════
+  // Transaction-order dependence requires semantic data-flow analysis. The regex
+  // fallback intentionally does not emit SWC-114 front-running findings.
   // 23. SWC-132 – UNEXPECTED ETHER BALANCE
   // ════════════════════════════════════════════════════════════════════════════
   sourceLines.forEach((line, i) => {
