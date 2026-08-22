@@ -7,6 +7,7 @@ import { SYSTEM_PROMPT, buildUserPrompt } from "./prompts.js";
 import { storeScan } from "./store.js";
 import { db, scansTable } from "@workspace/db";
 import { analyzeContractFallback, type FallbackVulnerability } from "./fallback-analyzer.js";
+import { compileSolidity } from "../../services/solidity/compiler.js";
 import * as zod from "zod";
 
 const router: IRouter = Router();
@@ -175,6 +176,15 @@ router.post("/scan-stream", async (req, res) => {
 
   if (code.length > 50000) {
     res.status(400).json({ error: "Contract code too large (max 50KB)" });
+    return;
+  }
+
+  const compilation = compileSolidity(code);
+  if (!compilation.success) {
+    res.status(400).json({
+      error: "Solidity compilation failed",
+      diagnostics: compilation.diagnostics.filter((diagnostic) => diagnostic.severity === "error").slice(0, 10),
+    });
     return;
   }
 

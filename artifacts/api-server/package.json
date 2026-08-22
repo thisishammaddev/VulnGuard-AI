@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "5.4.0",
     "@supabase/supabase-js": "^2.57.4",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
@@ -28,6 +29,7 @@
     "pino": "^9",
     "pino-http": "^10",
     "resend": "^6.12.0",
+    "solc": "0.8.30",
     "zod": "catalog:"
   },
   "devDependencies": {
